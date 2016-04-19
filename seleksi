@@ -1,0 +1,82 @@
+function [min_x, min_sigma, min_alpha] = seleksi(scheme, mu, lambda, epse, eps, xm, sigmam, x0, sigma, alpham, alpha)
+%%  [min_x, min_sigma, min_alpha] = selection(scheme, mu, lambda, epse, eps, xm, sigmam, x0, sigma, alpham, alpha)
+%
+%   Fungsi ini menjalankan proses seleksi pada prosedur strategi
+%   evolusioner
+%
+%   INPUT DATA:
+%
+%   - scheme: Skema seleksi :
+%                  * ',' = (mu, lambda)-tidak menggunakan rekombinasi dalam
+%                  proses reproduksi, hanya melibatkan individu dalam
+%                  offspring
+%                  * '+' = (mu + lambda)-tidak menggunakan rekombinasi
+%                  dalam proses reproduksi, melibatkan individu offspring
+%                  dan induk
+%   - mu:     Ukuran populasi induk(bilangan bulat positif)
+%   - lambda: Ukuran populasi offspring(bilangan bulat positif)
+%   - epse:   Kesalahan dari populasi offspring (nf x lambda matrix) - 
+%             (nf: length handle function 'f')
+%   - eps:    Kesalahan dari populasi induk (nf x lambda matrix) - 
+%             (nf: length handle function 'f')
+%   - xm:     Individu yang telah dimutasi (n x lambda matrix)
+%   - sigmam: Standart deviasi setelah mutasi(nsigma x lambda matrix)
+%   - x0:     Individu induk (n x mu matrix)
+%   - sigma:  Standar deviasi induk (nsigma x mu matrix)
+%   - alpham: sudut rotasi setela mutasi(nsigma x lambda matrix)
+%   - alpha:  sudut rotasi induk (nsigma x mu matrix)
+%
+%   OUTPUT DATA:
+%
+%   - min_x:     Individu yang dipilih(n x mu matrix)
+%   - min_sigma: Kovarians dari individu yang dipilih(1 x mu cell, each cell
+%                contains an nxn symmetric matrix)
+%   - min_alpha: Sudut rotasi individu yang dipilih (1 x mu cell, each
+%                cell contains an nxn symmetric matrix)
+%
+%   Sumber rujukan:
+%
+%   - BACK, Thomas. "Evolutionary algorithms in theory and practice".
+%     Oxford University Press. New York. 1996.
+%
+% ------------------------------------------------------------
+% | Dikembangkan oleh :   Gilberto Alejandro Ortiz Garcia     |
+% |                       gialorga@gmail.com                  |
+% |                       Universidad Nacional de Colombia    |
+% |                       Manizales, Colombia.                |
+% | Diadaptasi oleh   :   Ary Kusuma Ningsih                  |
+% |                       arykusumaningsih@ymail.com          |
+% |                       Univeristas Gadjah Mada Yogyakarta  |
+% |                       Yogyakarta, Indonesia               |
+% ------------------------------------------------------------
+%% Beginning
+switch scheme
+  %% (mu, lambda)-selection scheme
+  case ','
+    if (mu > lambda)
+      error('Ukuran populasi induk lebih besar daripada ukuran populasi offspring');
+    end
+    err = epse;
+    [xmin, idx] = sort(err);
+    min_x       = xm(:,idx(1:mu));
+    min_sigma   = sigmam(idx(1:mu));
+    min_alpha   = alpham(idx(1:mu));
+
+  %% (mu + lambda)-selection scheme
+  case '+'
+    err         = [epse eps];    
+    xaug        = [xm x0];
+    sigmaaug    = [sigmam sigma];
+    alphaaug    = [alpham alpha];
+    [xmin, idx] = sort(err);
+    min_x       = xaug(:,idx(1:mu));
+    min_sigma   = sigmaaug(idx(1:mu));
+    min_alpha   = alphaaug(idx(1:mu));
+
+  %% no suported selection scheme
+  otherwise
+    error('skema seleksi tidak didukung');
+end
+
+end
+%% END
