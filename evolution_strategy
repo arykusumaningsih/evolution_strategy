@@ -1,0 +1,198 @@
+function [min_x, min_f, off, EPS,j] = evolution_strategy(f, mu, lambda, gen, sel, rec_obj, rec_str, u, obj, nf, n, limits, x_0, sigma)
+%%  [min_x, min_f, off, EPS,j] = evolution_strategy(f, mu, lambda, gen, sel, rec_obj, rec_str, u, obj, nf, n, limits, x_0, sigma)
+%
+%   Fungsi ini mencoba mengoptimalkan fungsi 'f' menggunakan algoritma "Evolutionary Strategies" 
+%   Argumen "x_0" dan "sigma" adalah opsional.
+%   
+%   INPUT DATA:
+%
+%   - f:       Fungsi objektif (function: f(x,u))
+%   - mu:      Ukuran populasi induk(bilangan bulat positif)
+%   - lambda:  Banyaknya populasi offspring yang dihasilkan pada proses reproduksi (angka integer positif)
+%   - gen:     Banyaknya generasi (angka integer positif)
+%   - sel:     Skema seleksi :
+%                  * ',' = (mu, lambda)-tidak menggunakan rekombinasi dalam
+%                  proses reproduksi, hanya melibatkan individu dalam
+%                  offspring
+%                  * '+' = (mu + lambda)-tidak menggunakan rekombinasi
+%                  dalam proses reproduksi, melibatkan individu offspring
+%                  dan induk
+%   - rec_obj: : Tipe rekombinaasi yang digunakan pada variable objektif
+%                  * 1   = No recombination
+%                  * 2   = Discrete recombination
+%                  * 3   = Panmictic discrete recombination
+%                  * 4   = Intermediate recombination
+%                  * 5   = Panmictic intermediate recombination
+%                  * 6   = Generalized intermediate recombination
+%                  * 7   = Panmictic generalized intermediate recombination
+%   - rec_str: Tipe rekombinasi yang digunakan pada parameter strategi
+%   - u:       Eksitasi eksternal (jika tidak ada, ketik 0 (nol))
+%   - obj:     Vektor dengan hasil yang diinginkan
+%   - nf:      Panjang vektor fungsi handle (panjang (f) x 1 vektor)
+%   - n:       Panjang x_0 vektor (bilangan bulat positif)
+%   - limits:  Matrix dengan batas-batas variabel (matriks nx2). 
+%              Kolom pertama adalah batas bawah, kolom kedua adalah batas atas.
+%   - x_0:     Titik awal (opsional) (matriks nxmu)
+%   - sigma:   Sigma: Sel dengan matriks kovarians (Opsional) (sel 1 xmu ; 
+%              setiap sel harus memiliki matriks simetrik nxn)
+%
+ OUTPUT DATA:
+%
+%   - min_x:   Sel yang berisi populasi induk yang komponen terakhirnya
+%              memaksimalkan fungsi 'f'
+%   - min_f:   Sel yang berisi nilai dari fungsi objektif 'f'
+%              panjang(f) x 1 vector)
+%   - off:     sel yang berisi offspring dari tiap generasi
+%   - EPS:     vektor yang memilki nilai eror minimum dr tiap generasi
+%              gen x 1 vector)
+%   - j:       Jumlah iterasi algoritma yang berjalan (jumlah generasi
+%              final)
+%
+%   Sumber rujukan:
+%
+%   - BACK, Thomas. "Evolutionary algorithms in theory and practice".
+%     Oxford University Press. New York. 1996.
+%
+% ------------------------------------------------------------
+% | Dikembangkan oleh :   Gilberto Alejandro Ortiz Garcia     |
+% |                       gialorga@gmail.com                  |
+% |                       Universidad Nacional de Colombia    |
+% |                       Manizales, Colombia.                |
+% | Diadaptasi oleh   :   Ary Kusuma Ningsih                  |
+% |                       arykusumaningsih@ymail.com          |
+% |                       Univeristas Gadjah Mada Yogyakarta  |
+% |                       Yogyakarta, Indonesia               |
+% ------------------------------------------------------------
+%
+%   Date   : 20-Sep-2011
+%   Update : 19-Apr-2016
+
+%% Beggining
+
+%% Inisialisasi:
+if ((sel ~= ',') && (sel ~= '+'))
+  error('skema seleksi tidak didukung')
+end
+
+if exist('x_0','var')
+  if exist('sigma','var')
+    [x_0, sigma, alpha] = validate_sizes(mu, n, limits, x_0, sigma);
+  else
+    [x_0, sigma, alpha] = validate_sizes(mu, n, limits, x_0);
+  end
+else
+  [x_0, sigma, alpha] = validate_sizes(mu, n, limits);
+end
+
+e     = 1e-8;                         % eror maksimum yang diperbolehkan
+min_x = cell(1,gen);                  % alokasikan ruang memori untuk min_x
+min_f = cell(1,gen);                  % mengalokasikan ruang memori untuk min_f
+off   = cell(1,gen);                  % alokasikan ruang memori untuk populasi offspring
+
+min_x{1} = x_0;                       % titik pertama
+value = zeros(nf,mu);                 % alokasikan ruang memori untuk evaluasi fungsi
+for i = 1:mu
+  value(:,i) = f(x_0(:,i),u);
+end
+min_f{1} = value;                     % perkiraan awal
+off{1}   = zeros(n,1);
+
+j      = 1;                           % penghitung generasi
+jj     = 0;                           % penghitung stagnasi
+eps    = abs(obj - value(1,:));       % eror inisial
+EPS    = zeros(gen,1);                % alokasikan ruang memori untuk eror minimum setiap generasi
+EPS(1) = min(eps);
+
+if n == 1
+  %% Plot fungsi
+  figure
+  X = linspace(limits(1,1),limits(1,2),100);
+  Y = f(X,[]);
+  plot(X,Y);
+  hold on;
+elseif n == 2
+  %% Plot fungsi
+  figure
+  [X,Y] = meshgrid(linspace(limits(1,1),limits(1,2),100),linspace(limits(2,1),limits(2,2),100));
+  Z = reshape(f([X(:) Y(:)]',[]), 100, 100);
+  contour(X,Y,Z,30,'k');      % Contour plot
+  grid on
+  xlabel('x','FontSize',16);
+  ylabel('f(x)','FontSize',16);
+  title('Evolusi Offspring','FontSize',18);
+  hold on;
+  pcolor(X,Y,Z);              
+  shading interp
+end
+
+%% Mulai ES
+while ((j < gen) && (min(eps) > e))
+  %% Print report:
+  if mod(j,5) == 0
+    fprintf('\tGeneration j = %4d,  fitness = %g\n',j,min(eps));
+  end;
+  
+  %% Rekombinasi:
+  [xr,sigmar,alphar] = recombination(rec_obj,rec_str,n,mu,lambda,min_x{j},sigma,alpha);
+  off{j+1}           = xr;            % populasi offspring
+  
+  %% Mutasi:
+  [xm,sigmam,alpham] = mutation(n,lambda,xr,sigmar,alphar,limits);
+  
+  %% Evaluasi:
+  phie = zeros(nf,lambda);
+  for i = 1:lambda
+    phie(:,i) = f(xm(:,i),u);
+  end
+  epse = abs(obj - phie(1,:));
+  
+  %% Seleksi:
+  [min_x{j+1}, sigma, alpha] = selection(sel, mu, lambda, epse, eps, xm, sigmam, min_x{j}, sigma, alpham, alpha);
+
+  %% Simpan hasil yang lebih baik:
+  value = zeros(nf,mu);               % alokasikan ruang memori untuk fungsi evaluasi
+  for i = 1:mu
+    value(:,i) = f(min_x{j+1}(:,i),u);
+  end
+  min_f{j+1} = value;                 % perkiraan berikutnya
+  eps = abs(obj - value(1,:));        % error
+  
+  EPS(j+1) = min(eps);
+  
+  %% Kriteria stagnasi:
+  if (EPS(j) == EPS(j+1))
+    jj = jj+1;
+  else
+    jj = 0;
+  end
+  
+  %% tingkatkan counter generasi:
+  j = j+1;
+  
+  %% plot hasil awal
+  if n == 1
+    %% Plot populasi offspring tiap generasi
+    h = plot(off{j-1}(1,:),min_f{j-1}(1,:),'*r');
+    pause(0.2)
+    if (((EPS(j) > e) && (j < gen)) && (jj<30))
+      delete(h);
+    end
+  elseif n == 2
+    %% Plot populasi offspring tiap generasi
+    h = plot(off{j-1}(1,:),off{j-1}(2,:),'*r');
+    axis([limits(1,1) limits(1,2) limits(2,1) limits(2,2)]);
+    pause(0.2)
+    if (((EPS(j) > e) && (j < gen)) && (jj<30))
+      delete(h);
+    end
+  end
+
+  if (jj == 30)
+    fprintf('\n\n\tKesalahan tetap konstan selama 30 generasi berturut-turut\n\n');
+    break
+  end
+
+end
+
+end
+%% SELESAI
