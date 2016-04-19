@@ -1,0 +1,91 @@
+function [xm,sigmam,alpham] = mutasi(n,lambda,xr,sigmar,alphar,limits)
+%%  [xm,sigmam,alpham] = mutasi(n,lambda,xr,sigmar,alphar,limits)
+%  Fungsi ini melakukan mutasi diperlukan dalam strategi evolusi untuk 
+%  mendapatkan populasi keturunan (offspring) berikutnya.
+%
+%   INPUT DATA:
+%
+%   - n: Dimensi dari vektor state 'x_0' (bilangan bulat positif)
+%   - lambda: Ukuran populasi offspring(bilangan bulat positif)
+%   - xr:     vektor yang telah direkombinasi (n x lambda vector)
+%   - sigmap: kovarians yang tekah direkombinasi (1 x lambda cell; each cell has an
+%             n x n matrix)
+%   - alphap: sudut rotasi yang telah direkombinasi (1 x lambda cell; each cell has an
+%             n x n matrix)
+%   - limits:  Matrix dengan batas-batas variabel (matriks nx2). 
+%              Kolom pertama adalah batas bawah, kolom kedua adalah batas atas.
+%
+%   OUTPUT DATA:
+%
+%   - xm:     Vektor yang telah dimutasi
+%   - sigmam: covarianc setelah mutasi
+%   - alpham: sudut rotasi setelah mutasi
+%
+%   Sumber rujukan:
+%
+%   - BACK, Thomas. "Evolutionary algorithms in theory and practice".
+%     Oxford University Press. New York. 1996.
+%
+% ------------------------------------------------------------
+% | Dikembangkan oleh :   Gilberto Alejandro Ortiz Garcia     |
+% |                       gialorga@gmail.com                  |
+% |                       Universidad Nacional de Colombia    |
+% |                       Manizales, Colombia.                |
+% | Diadaptasi oleh   :   Ary Kusuma Ningsih                  |
+% |                       arykusumaningsih@ymail.com          |
+% |                       Univeristas Gadjah Mada Yogyakarta  |
+% |                       Yogyakarta, Indonesia               |
+% ------------------------------------------------------------
+%
+%   Date   : 20-Sep-2011
+%   Update : 19-Apr-2016
+
+
+%% Beginning:
+
+%%Faktor Mutasi(pers. (2.18) pada BACK):
+tau   = 1/(sqrt(2*sqrt(n)));          % learning rate
+taup  = 1/(sqrt(2*n));                % learning rate
+beta  = 5*pi/180;                     % 5 degrees (in radians)
+
+%% Mutasi:
+xm     = zeros(n,lambda);
+sigmam = cell(1,lambda);
+alpham = cell(1,lambda);
+
+for i = 1:lambda
+  tmp       = randn(n,n);
+  sigmam{i} = sigmar{i}.*exp(taup*randn + tau*(tmp + tmp'));
+  tmp       = rand(n,n);
+  alpham{i} = alphar{i} + beta*triu((tmp + tmp'),1);
+  
+  %& Koordinat transformasi terhadap sumbu 'i' dan sudut 'j' 
+  %  'alpha_ij' (Pers. 2.14)
+  R = eye(n);
+  for m = 1:n-1
+    for q = m+1:n
+      T               =  eye(n);
+      T([m q], [m q]) =  [  cos(alpham{i}(m,m))     -sin(alpham{i}(m,q))
+                            sin(alpham{i}(q,m))      cos(alpham{i}(q,q)) ];
+      R               =  R*T;
+    end
+  end
+
+  xm(:,i) = xr(:,i) + R*sqrt(diag(diag(sigmam{i})))*randn(n,1);
+  
+  %% Batasan
+  for ii = 1:n
+    % Batas bawah
+    if xm(ii,i) < limits(ii,1)
+      xm(ii,i) = limits(ii,1);
+    end
+    % Batas atas
+    if xm(ii,i) > limits(ii,2)
+      xm(ii,i) = limits(ii,2);
+    end
+  end
+
+end
+
+end
+%% END
