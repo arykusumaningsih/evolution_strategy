@@ -1,0 +1,81 @@
+function [x_0, sigma, alpha] = validasi_ukuran(mu, n, limits, x_0, sigma)
+%%  [x_0, sigma, alpha] = validate_sizes(mu, n, limits, x_0, sigma)
+%
+%   Fungsi ini memvalidasi ukuran dari matrix x_0 dan sigma.
+%   Serta menghitung matriks sudut rotasi 'alpha' 
+%
+%   Sumber rujukan:
+%
+%   - BACK, Thomas. "Evolutionary algorithms in theory and practice".
+%     Oxford University Press. New York. 1996.
+%
+% ------------------------------------------------------------
+% | Dikembangkan oleh :   Gilberto Alejandro Ortiz Garcia     |
+% |                       gialorga@gmail.com                  |
+% |                       Universidad Nacional de Colombia    |
+% |                       Manizales, Colombia.                |
+% | Diadaptasi oleh   :   Ary Kusuma Ningsih                  |
+% |                       arykusumaningsih@ymail.com          |
+% |                       Univeristas Gadjah Mada Yogyakarta  |
+% |                       Yogyakarta, Indonesia               |
+% ------------------------------------------------------------
+%% Beginning
+
+%%  Validasi ukuran 'x_0'  (jika ada), jika 'x_0' tidak ada, buat 
+%   vektor 'x_0':
+if ((nargin < 3) || (nargin > 5))
+  error('Number of input arguments is incomplete (< 3) or there are more (> 5)');
+
+elseif nargin == 3
+  %% Bangkitkan populasi induk secara random
+  x_0 = zeros(n,mu);
+  for i = 1:n
+    x_0(i,:) = unifrnd(limits(i,1), limits(i,2), 1, mu);      % initialization
+  end
+
+  %% Bangkitkan matriks kovarians
+  sigma  = cell(1,mu);
+  for i = 1:mu
+    % bangkitkan mtriks covarian simetris secara random
+    tmp      = rand(n,n);
+    sigma{i} = tmp + tmp';
+  end
+
+elseif nargin == 4
+  %% validasi ukuran'x_0'
+  if ~isequal(size(x_0), [n mu])
+    error('The dimension of x_0 must be n x mu')
+  end
+  %% Bangkitkan matrix kovarians
+  sigma  = cell(1,mu);
+  for i = 1:mu
+     % bangkitkan mtriks covarian simetris secara random
+    tmp      = rand(n,n);
+    sigma{i} = tmp + tmp';
+  end
+else
+  %% Validasi ukuran dari 'x_0'
+  if ~isequal(size(x_0), [n mu])
+    error('The dimension of x_0 must be n x mu')
+  end
+  
+  %% Validasi ukuran dari 'sigma'
+  if ~isequal(size(sigma), [1 mu])
+    error('Sigma must be a "cell" of size 1xmu. Each cell must contain an nxn symmetric covariance matrix')
+  end
+
+end
+
+%% Hitung matriks 'alpha' dari matrik kovarians (pers 2.13 dari BACK)
+alpha = cell(1,mu);
+for i = 1:mu
+  alpha{i} = zeros(n);
+  for j = 1:n-1
+    for k = j+1:n
+      alpha{i}(j,k) = 0.5*atan2(2*sigma{i}(j,k),(sigma{i}(j,j)^2 - sigma{i}(k,k)^2));
+    end
+  end
+end
+
+end
+%% END
