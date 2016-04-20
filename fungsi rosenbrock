@@ -1,0 +1,135 @@
+%%  CONTOH IMPLEMENTASI
+%
+%   Sumber rujukan:
+%
+%   - BACK, Thomas. "Evolutionary algorithms in theory and practice".
+%     Oxford University Press. New York. 1996.
+%
+% ------------------------------------------------------------
+% | Dikembangkan oleh :   Gilberto Alejandro Ortiz Garcia     |
+% |                       gialorga@gmail.com                  |
+% |                       Universidad Nacional de Colombia    |
+% |                       Manizales, Colombia.                |
+% | Diadaptasi oleh   :   Ary Kusuma Ningsih                  |
+% |                       arykusumaningsih@ymail.com          |
+% |                       Univeristas Gadjah Mada Yogyakarta  |
+% |                       Yogyakarta, Indonesia               |
+% ------------------------------------------------------------
+%
+%   Date   : 20-Sep-2011
+%   Update : 19-Apr-2016
+
+%% Beginning:
+clear, clc, close all
+
+fun = 1;                    % FUNGSI YANG AKAN DIMINIMISASI
+
+switch fun
+  case 1
+    %%  Fungsi Rosenbrock
+    %   Minimum: f(1,1) = 0
+    f      = @(x,u) (1-x(1,:)).^2 + 100*(x(2,:)-x(1,:).^2).^2;
+    n_x    = 2;                           % kondisi'n_x' 
+    limits = repmat([-5 5], n_x, 1);      % Batasan
+    obj    = 0;                           % nilai objektif(f(x_min) = obj)
+
+   otherwise
+    error('Not supported equation');
+end
+
+%% Inisiasi parameter
+nf      = 1;                 % Panjang vektor output 'f(x,y)'
+mu      = 100;               % Ukuran populasi induk
+lambda  = 100;               % Ukuran populasi offspring
+gen     = 100;               % Jumlah generasi
+sel     = '+';               % skema seleksi (Hal 78 pada(BACK))
+rec_obj = 2;                 % tipe rekombinasi yang digunakan (Hal. 74 pada (BACK))
+                             % Lihat 'recombinasi.m'
+rec_str = 4;                 % Tipe rekombinasi yang dilakukan pada parameter
+                             % strategi(Hal 74 pada (BACK))
+
+u       = 0;                 %  eksitasi eksternal
+
+%% Plot function in 3D
+if n_x == 2                  % apabila fungsi 2D, buat surface
+  figure
+  [X,Y] = meshgrid(linspace(limits(1,1),limits(1,2),100),linspace(limits(2,1),limits(2,2),100));
+  Z = reshape(f([X(:) Y(:)]',[]), 100, 100);
+  surf(X,Y,Z)
+  shading interp
+  title('function','FontSize',18);
+end
+
+%% Jalankan "Evolutionary Strategy" (ES):
+[min_x, min_f, off, EPS,idx] = evolution_strategy(f, mu, lambda, gen, sel, rec_obj, rec_str, u, obj, nf, n_x, limits);
+
+%% Plot hasil simulasi
+%% Apabila fungsi adalah fungsi 1D
+if n_x == 1
+  Res    = zeros(1,idx);
+
+  for j = 1:idx
+    Res(j) = min_x{j}(1);    
+  end
+
+  figure
+  plot(Res)
+  grid on
+  xlabel('Generasi ke','FontSize',16);
+  ylabel('nilai x','FontSize',16);
+  title('Hasil Evolutionary strategy ','FontSize',18);
+  
+  % Tampilkan eror pada plot semilogaritmik
+  figure
+  semilogy(EPS)
+  grid on
+  xlabel('Generasi ke','FontSize',16);
+  ylabel('log(error)','FontSize',16);
+  title('Error minimum pada tiap generasi','FontSize',18);
+
+%% Apabila fungsi adalah fungsi 2D
+elseif n_x == 2
+  Res    = cell(1,2);
+  Res{1} = zeros(1,idx);
+  Res{2} = zeros(1,idx);
+
+  for j = 1:idx
+    Res{1}(j) = min_x{j}(1);
+    Res{2}(j) = min_x{j}(2);
+  end
+
+  labels = {'x value', 'y value'};
+
+  for i = 1:2
+    figure
+    plot(Res{i})
+    grid on
+    xlabel('Generasi','FontSize',16);
+    ylabel(labels{i},'FontSize',16);
+    title('Hasil Evolutionary strategy ','FontSize',18);
+  end
+  
+  % Tampilkan eror pada plot semilogaritmik
+  figure
+  semilogy(EPS)
+  grid on
+  xlabel('Generation','FontSize',16);
+  ylabel('log(error)','FontSize',16);
+  title('Error Minimum pada tiap generasi','FontSize',18);
+
+%% Apabila fungsi tida dapat diplot maka hanya akan ditampilkan eror
+else
+  for i = 1:idx
+    if (size(min_x{i}) == zeros(1,2))
+      idx = idx - 1;
+    end
+  end
+  figure
+  semilogy(EPS(1:idx));
+  grid on
+  xlabel('Generasi ke','FontSize',16);
+  ylabel('log(error)','FontSize',16);
+  title('Hasil Evolutionary strategy ','FontSize',18);
+end
+
+%% END
